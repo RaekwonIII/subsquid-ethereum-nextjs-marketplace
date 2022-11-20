@@ -4,7 +4,22 @@ import { create as ipfsHttpClient } from 'ipfs-http-client'
 import { useRouter } from 'next/router'
 import Web3Modal from 'web3modal'
 
-const client = ipfsHttpClient('https://ipfs.infura.io:5001/api/v0')
+// const client = ipfsHttpClient('https://infura-ipfs.io:5001/api/v0')
+// https://community.infura.io/t/how-to-add-data-using-ipfs-http-client/5179
+
+const auth =
+'Basic ' + Buffer.from(process.env.NEXT_PUBLIC_IPFS_PROJECT_ID + ':' + process.env.NEXT_PUBLIC_IPFS_PROJECT_SECRET).toString('base64');
+console.log(process.env.NEXT_PUBLIC_IPFS_PROJECT_ID, process.env.NEXT_PUBLIC_IPFS_PROJECT_SECRET);
+console.log(auth);
+
+const client = ipfsHttpClient({
+    host: 'infura-ipfs.io',
+    port: 5001,
+    protocol: 'https',
+    headers: {
+        authorization: auth,
+    },
+});
 
 import {
   marketplaceAddress
@@ -26,7 +41,7 @@ export default function CreateItem() {
           progress: (prog) => console.log(`received: ${prog}`)
         }
       )
-      const url = `https://ipfs.infura.io/ipfs/${added.path}`
+      const url = `https://ipfs.io/ipfs/${added.path}`
       setFileUrl(url)
     } catch (error) {
       console.log('Error uploading file: ', error)
@@ -41,7 +56,7 @@ export default function CreateItem() {
     })
     try {
       const added = await client.add(data)
-      const url = `https://ipfs.infura.io/ipfs/${added.path}`
+      const url = `https://ipfs.io/ipfs/${added.path}`
       /* after file is uploaded to IPFS, return the URL to use it in the transaction */
       return url
     } catch (error) {

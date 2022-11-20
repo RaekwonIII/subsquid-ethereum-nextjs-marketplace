@@ -1,18 +1,21 @@
 require("@nomiclabs/hardhat-waffle");
 const fs = require('fs');
-// const infuraId = fs.readFileSync(".infuraid").toString().trim() || "";
+const infuraId = process.env.INFURA_NODE_ID;//fs.readFileSync(".infuraid").toString().trim() || "";
 
 module.exports = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      chainId: 1337
+      chainId: 1337,
+      // mining: {
+      //   auto: false,
+      //   interval: [4500, 5500]
+      // }
     },
     /*
-    mumbai: {
+    goerli: {
       // Infura
-      // url: `https://polygon-mumbai.infura.io/v3/${infuraId}`
-      url: "https://rpc-mumbai.matic.today",
+      // url: `https://goerli.infura.io/v3/${infuraId}`
       accounts: [process.env.privateKey]
     },
     matic: {
