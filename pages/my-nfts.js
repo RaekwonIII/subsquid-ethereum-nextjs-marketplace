@@ -8,10 +8,10 @@ import {
   marketplaceAddress
 } from '../config'
 
-const auth =
-'Basic ' + Buffer.from(process.env. NEXT_PUBLIC_IPFS_PROJECT_ID + ':' + process.env. NEXT_PUBLIC_IPFS_PROJECT_SECRET).toString('base64')
-
 import NFTMarketplace from '../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json'
+
+const auth =
+'Basic ' + Buffer.from(process.env. NEXT_PUBLIC_IPFS_PROJECT_ID + ':' + process.env. NEXT_PUBLIC_IPFS_PROJECT_SECRET).toString('base64');
 
 export default function MyAssets() {
   const [nfts, setNfts] = useState([])
@@ -20,6 +20,7 @@ export default function MyAssets() {
   useEffect(() => {
     loadNFTs()
   }, [])
+
   async function loadNFTs() {
     const web3Modal = new Web3Modal({
       network: "mainnet",
@@ -27,7 +28,44 @@ export default function MyAssets() {
     })
     const connection = await web3Modal.connect()
     const provider = new ethers.providers.Web3Provider(connection)
-    const signer = provider.getSigner()
+    const signer = provider.getSigner();
+
+    // const options = {
+    //   method: 'POST',
+    //   url: "http://localhost:4350/graphql",
+    //   headers,
+    //   data: requestBody
+    // };
+    // const headers = {
+    //   'content-type': 'application/json',
+    //   // 'Authorization': `Bearer ${HYGRAPH_PERMANENTAUTH_TOKEN}`
+    // };
+    // const requestBody = {
+    //   query: `query getMyNFTs($owner:String!) {
+    //             tokens(orderBy: id_ASC, where: {owner: {id_eq: $owner}}) {
+    //               id
+    //               uri
+    //               transfers(limit: 1, orderBy: timestamp_DESC) {
+    //                 to {
+    //                   id
+    //                 }
+    //               }
+    //             }
+    //           }`,
+    //   variables: { signer }
+    // };
+
+    // try {
+    //   const response = await axios(options);
+    //   console.log('RESPONSE FROM AXIOS REQUEST', response.data);
+    // }
+    // catch (err) {
+    //   console.log('ERROR DURING AXIOS REQUEST', err);
+    // }
+    // finally {
+    //   // setNfts(items)
+    //   // setLoadingState('loaded') 
+    // }
 
     const marketplaceContract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
     const data = await marketplaceContract.fetchMyNFTs()

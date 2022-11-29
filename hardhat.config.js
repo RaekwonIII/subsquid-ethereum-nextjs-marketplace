@@ -9,7 +9,7 @@ module.exports = {
       chainId: 1337,
       // mining: {
       //   auto: false,
-      //   interval: [4500, 5500]
+      //   interval: [4800, 5200]
       // }
     },
     /*

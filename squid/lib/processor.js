@@ -38,8 +38,8 @@ const processor = new evm_processor_1.EvmBatchProcessor()
 })
     .addLog(contractAddress, {
     filter: [
-        [NFTMarketplace.events["Transfer(address,address,uint256)"].topic],
-        // [NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].topic]
+        // [NFTMarketplace.events["Transfer(address,address,uint256)"].topic],
+        [NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].topic]
     ],
     data: {
         evmLog: {
@@ -56,8 +56,9 @@ processor.run(new typeorm_store_1.TypeormDatabase(), async (ctx) => {
     for (const block of ctx.blocks) {
         for (const item of block.items) {
             if (item.kind === "evmLog") {
+                ctx.log.info('Found item!');
                 if (item.address === contractAddress) {
-                    const transfer = handleTransfer({
+                    const transfer = handleEvents({
                         ...ctx,
                         block: block.header,
                         ...item,
@@ -89,15 +90,16 @@ async function getOrCreateContractEntity(store) {
     return contractEntity;
 }
 exports.getOrCreateContractEntity = getOrCreateContractEntity;
-function handleTransfer(ctx) {
+function handleEvents(ctx) {
     const { evmLog, transaction, block } = ctx;
     const addr = evmLog.address.toLowerCase();
-    const { from, to, tokenId } = NFTMarketplace.events["Transfer(address,address,uint256)"].decode(evmLog);
+    const { owner, seller, tokenId, price } = NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].decode(evmLog);
     const transfer = {
         id: `${transaction.hash}-${addr}-${tokenId.toBigInt()}-${evmLog.index}`,
         tokenId: tokenId.toBigInt(),
-        from,
-        to,
+        from: seller,
+        to: owner,
+        price: price.toBigInt(),
         timestamp: BigInt(block.timestamp),
         block: block.height,
         transactionHash: transaction.hash,
@@ -153,7 +155,7 @@ async function saveTransfers(ctx, transfersData) {
             tokens.set(token.id, token);
         }
         token.owner = to;
-        const { id, block, transactionHash, timestamp } = transferData;
+        const { id, block, transactionHash, timestamp, price } = transferData;
         const transfer = new model_1.Transfer({
             id,
             block,
@@ -161,6 +163,7 @@ async function saveTransfers(ctx, transfersData) {
             transactionHash,
             from,
             to,
+            price,
             token,
         });
         transfers.add(transfer);

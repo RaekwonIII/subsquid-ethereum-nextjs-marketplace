@@ -1,5 +1,5 @@
 import { Store, TypeormDatabase } from "@subsquid/typeorm-store";
-import {BlockHandlerContext, EvmBatchProcessor, LogHandlerContext} from '@subsquid/evm-processor';
+import { EvmBatchProcessor, BlockHandlerContext, LogHandlerContext } from "@subsquid/evm-processor";
 import * as NFTMarketplace from './abi/NFTMarketplace'
 import { Contract, Owner, Token, Transfer } from "./model";
 import { In } from "typeorm";
@@ -16,8 +16,8 @@ const processor = new EvmBatchProcessor()
     contractAddress
   , {
     filter: [
-      [NFTMarketplace.events["Transfer(address,address,uint256)"].topic],
-      // [NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].topic]
+      // [NFTMarketplace.events["Transfer(address,address,uint256)"].topic],
+      [NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].topic]
     ],
     data: {
       evmLog: {
@@ -36,8 +36,9 @@ processor.run(new TypeormDatabase(), async (ctx) => {
   for (const block of ctx.blocks) {
     for (const item of block.items) {
       if (item.kind === "evmLog") {
+        ctx.log.info('Found item!')
         if (item.address === contractAddress) {
-          const transfer = handleTransfer({
+          const transfer = handleEvents({
             ...ctx,
             block: block.header,
             ...item,
@@ -59,6 +60,7 @@ type TransferData = {
   id: string;
   from: string;
   to: string;
+  price: bigint;
   tokenId: bigint;
   timestamp: bigint;
   block: number;
@@ -83,7 +85,7 @@ export async function getOrCreateContractEntity(store: Store): Promise<Contract>
   return contractEntity;
 }
 
-function handleTransfer(
+function handleEvents(
   ctx: LogHandlerContext<
     Store,
     { evmLog: { topics: true; data: true }; transaction: { hash: true } }
@@ -92,15 +94,16 @@ function handleTransfer(
   const { evmLog, transaction, block } = ctx;
   const addr = evmLog.address.toLowerCase()
 
-  const { from, to, tokenId } = NFTMarketplace.events[
-    "Transfer(address,address,uint256)"
+  const { owner, seller, tokenId, price } = NFTMarketplace.events[
+    "MarketItemCreated(uint256,address,address,uint256,bool)"
   ].decode(evmLog);
 
   const transfer: TransferData = {
     id: `${transaction.hash}-${addr}-${tokenId.toBigInt()}-${evmLog.index}`,
     tokenId: tokenId.toBigInt(),
-    from,
-    to,
+    from: seller,
+    to: owner,
+    price: price.toBigInt(),
     timestamp: BigInt(block.timestamp),
     block: block.height,
     transactionHash: transaction.hash,
@@ -176,7 +179,7 @@ async function saveTransfers(ctx: BlockHandlerContext<Store>, transfersData: Tra
     }
     token.owner = to;
 
-    const { id, block, transactionHash, timestamp } = transferData;
+    const { id, block, transactionHash, timestamp, price } = transferData;
 
     const transfer = new Transfer({
       id,
@@ -185,6 +188,7 @@ async function saveTransfers(ctx: BlockHandlerContext<Store>, transfersData: Tra
       transactionHash,
       from,
       to,
+      price,
       token,
     });
 

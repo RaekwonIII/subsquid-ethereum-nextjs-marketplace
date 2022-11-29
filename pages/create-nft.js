@@ -9,8 +9,6 @@ import Web3Modal from 'web3modal'
 
 const auth =
 'Basic ' + Buffer.from(process.env.NEXT_PUBLIC_IPFS_PROJECT_ID + ':' + process.env.NEXT_PUBLIC_IPFS_PROJECT_SECRET).toString('base64');
-console.log(process.env.NEXT_PUBLIC_IPFS_PROJECT_ID, process.env.NEXT_PUBLIC_IPFS_PROJECT_SECRET);
-console.log(auth);
 
 const client = ipfsHttpClient({
     host: 'infura-ipfs.io',
@@ -41,7 +39,7 @@ export default function CreateItem() {
           progress: (prog) => console.log(`received: ${prog}`)
         }
       )
-      const url = `https://ipfs.io/ipfs/${added.path}`
+      const url = `https://massimocodes.infura-ipfs.io/ipfs/${added.path}`
       setFileUrl(url)
     } catch (error) {
       console.log('Error uploading file: ', error)
@@ -56,7 +54,7 @@ export default function CreateItem() {
     })
     try {
       const added = await client.add(data)
-      const url = `https://ipfs.io/ipfs/${added.path}`
+      const url = `https://massimocodes.infura-ipfs.io/ipfs/${added.path}`
       /* after file is uploaded to IPFS, return the URL to use it in the transaction */
       return url
     } catch (error) {
@@ -75,9 +73,12 @@ export default function CreateItem() {
     const price = ethers.utils.parseUnits(formInput.price, 'ether')
     let contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
     let listingPrice = await contract.getListingPrice()
+    console.log('listing price: ', listingPrice)
     listingPrice = listingPrice.toString()
     let transaction = await contract.createToken(url, price, { value: listingPrice })
-    await transaction.wait()
+    let res = await transaction.wait()
+    console.log('NFT created: ', res)
+
    
     router.push('/')
   }
