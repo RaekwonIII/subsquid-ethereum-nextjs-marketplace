@@ -1,45 +1,23 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrCreateContractEntity = void 0;
 const typeorm_store_1 = require("@subsquid/typeorm-store");
 const evm_processor_1 = require("@subsquid/evm-processor");
-const NFTMarketplace = __importStar(require("./abi/NFTMarketplace"));
+const NFTMarketplace_1 = require("./abi/NFTMarketplace");
 const model_1 = require("./model");
 const typeorm_1 = require("typeorm");
 const ethers_1 = require("ethers");
 const contractAddress = process.env.MARKETPLACE_ADDRESS || '0x0000000000000000000000000000000000000000';
 const processor = new evm_processor_1.EvmBatchProcessor()
     .setDataSource({
-    chain: process.env.ETHEREUM_MAINNET_WSS,
-    archive: process.env.ARCHIVE_URL || 'https://eth.archive.subsquid.io',
+    chain: "https://goerli.infura.io/v3/2a1be98f319e4b059b85f853a140b315",
+    archive: 'http://goerli.archive.subsquid.io/', //process.env.ARCHIVE_URL || 'http://goerli.archive.subsquid.io/',
 })
-    .addLog(contractAddress, {
+    .addLog("0xF6a9720a7900409f7C3cffda3436D3E9901838A7" //contractAddress
+, {
     filter: [
-        // [NFTMarketplace.events["Transfer(address,address,uint256)"].topic],
-        [NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].topic]
+        [NFTMarketplace_1.events.Transfer.topic],
+        [NFTMarketplace_1.events.MarketItemCreated.topic]
     ],
     data: {
         evmLog: {
@@ -53,25 +31,39 @@ const processor = new evm_processor_1.EvmBatchProcessor()
 });
 processor.run(new typeorm_store_1.TypeormDatabase(), async (ctx) => {
     const transfersData = [];
+    const marketData = [];
     for (const block of ctx.blocks) {
         for (const item of block.items) {
             if (item.kind === "evmLog") {
-                ctx.log.info('Found item!');
                 if (item.address === contractAddress) {
-                    const transfer = handleEvents({
-                        ...ctx,
-                        block: block.header,
-                        ...item,
-                    });
-                    transfersData.push(transfer);
+                    if (item.evmLog.topics[0] === NFTMarketplace_1.events.Transfer.topic) {
+                        //   const transfer = handleTransfers({
+                        //     ...ctx,
+                        //     block: block.header,
+                        //     ...item,
+                        //   });
+                        //   transfersData.push(transfer);
+                        ctx.log.info("Transfer data found: ");
+                        ctx.log.info(item.evmLog.data);
+                    }
+                    if (item.evmLog.topics[0] === NFTMarketplace_1.events.MarketItemCreated.topic) {
+                        // const marketItem = handleMarketItems({
+                        //   ...ctx,
+                        //   block: block.header,
+                        //   ...item,
+                        // });
+                        // marketData.push(marketItem);
+                        ctx.log.info("Market item created: ");
+                        ctx.log.info(item.evmLog.data);
+                    }
                 }
             }
         }
     }
-    await saveTransfers({
-        ...ctx,
-        block: ctx.blocks[ctx.blocks.length - 1].header,
-    }, transfersData);
+    // await saveTransfers({
+    //   ...ctx,
+    //   block: ctx.blocks[ctx.blocks.length - 1].header,
+    // }, transfersData);
 });
 let contractEntity;
 async function getOrCreateContractEntity(store) {
@@ -90,21 +82,32 @@ async function getOrCreateContractEntity(store) {
     return contractEntity;
 }
 exports.getOrCreateContractEntity = getOrCreateContractEntity;
-function handleEvents(ctx) {
+function handleTransfers(ctx) {
     const { evmLog, transaction, block } = ctx;
     const addr = evmLog.address.toLowerCase();
-    const { owner, seller, tokenId, price } = NFTMarketplace.events["MarketItemCreated(uint256,address,address,uint256,bool)"].decode(evmLog);
+    const { from, to, tokenId } = NFTMarketplace_1.events.Transfer.decode(evmLog);
     const transfer = {
         id: `${transaction.hash}-${addr}-${tokenId.toBigInt()}-${evmLog.index}`,
         tokenId: tokenId.toBigInt(),
-        from: seller,
-        to: owner,
-        price: price.toBigInt(),
+        from,
+        to,
         timestamp: BigInt(block.timestamp),
         block: block.height,
         transactionHash: transaction.hash,
     };
     return transfer;
+}
+function handleMarketItems(ctx) {
+    const marketData = {
+        id: "",
+        from: "",
+        to: "",
+        tokenId: 0n,
+        timestamp: 0n,
+        block: 0,
+        transactionHash: ""
+    };
+    return marketData;
 }
 async function saveTransfers(ctx, transfersData) {
     const tokensIds = new Set();
@@ -124,7 +127,7 @@ async function saveTransfers(ctx, transfersData) {
         owner,
     ]));
     for (const transferData of transfersData) {
-        const contract = new NFTMarketplace.Contract(ctx, { height: transferData.block }, contractAddress);
+        const contract = new NFTMarketplace_1.Contract(ctx, { height: transferData.block }, contractAddress);
         let from = owners.get(transferData.from);
         if (from == null) {
             from = new model_1.Owner({ id: transferData.from, balance: 0n });
@@ -155,7 +158,7 @@ async function saveTransfers(ctx, transfersData) {
             tokens.set(token.id, token);
         }
         token.owner = to;
-        const { id, block, transactionHash, timestamp, price } = transferData;
+        const { id, block, transactionHash, timestamp } = transferData;
         const transfer = new model_1.Transfer({
             id,
             block,
@@ -163,7 +166,7 @@ async function saveTransfers(ctx, transfersData) {
             transactionHash,
             from,
             to,
-            price,
+            price: 0n,
             token,
         });
         transfers.add(transfer);
