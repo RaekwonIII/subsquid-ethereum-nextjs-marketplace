@@ -2,25 +2,32 @@ version: "3"
 
 services:
   ingester:
+    # image: subsquid/eth-stage1-ingester:0.0.33
     image: massimocodes/eth-archive-ingester:latest
     environment:
       RUST_LOG: "info"
     command: [
             "/eth/eth-archive-ingester",
+            "--metrics-addr", "0.0.0.0:8080",
             "--data-path", "/data/parquet/files",
             "--request-timeout-secs", "300",
             "--connect-timeout-ms", "1000",
             "--block-batch-size", "10",
             "--http-req-concurrency", "200",
-            "--default-rpc-url", "http://host.docker.internal:8545/",
-            # "--default-rpc-url", "https://rpc.ankr.com/eth_goerli",
+            "--best-block-offset", "10",
+            "--rpc-urls", "http://host.docker.internal:8545/",
+            # "--rpc-urls", "https://rpc.ankr.com/eth_goerli",
             "--max-blocks-per-file", "100000",
             "--max-txs-per-file", "200000",
             "--max-logs-per-file", "200000",
+            "--max-row-groups-per-file", "16",
+            "--max-pending-folder-writes", "1",
+            "--folder-write-concurrency", "32",
     ]
     volumes:
       - parquet:/data
   worker:
+    # image: subsquid/eth-stage1-worker:0.0.33
     image: massimocodes/eth-archive-worker:latest
     environment:
       RUST_LOG: "info"
@@ -34,12 +41,14 @@ services:
             "--request-timeout-secs", "300",
             "--connect-timeout-ms", "1000",
             "--block-batch-size", "10",
-            "--http-req-concurrency", "200",
-            "--default-rpc-url", "http://host.docker.internal:8545/",
-            # "--default-rpc-url", "https://rpc.ankr.com/eth_goerli",
-            "--min-hot-block-range", "100500",
+            "--http-req-concurrency", "10",
+            "--best-block-offset", "10",
+            "--rpc-urls", "http://host.docker.internal:8545/",
+            # "--rpc-urls", "https://rpc.ankr.com/eth_goerli",
+            "--initial-hot-block-range", "100000",
             "--max-resp-body-size", "30",
             "--resp-time-limit", "5000",
+            "--query-concurrency", "16",
     ]
     volumes:
       - db:/data/db
