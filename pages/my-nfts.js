@@ -30,43 +30,6 @@ export default function MyAssets() {
     const provider = new ethers.providers.Web3Provider(connection)
     const signer = provider.getSigner();
 
-    // const options = {
-    //   method: 'POST',
-    //   url: "http://localhost:4350/graphql",
-    //   headers,
-    //   data: requestBody
-    // };
-    // const headers = {
-    //   'content-type': 'application/json',
-    //   // 'Authorization': `Bearer ${HYGRAPH_PERMANENTAUTH_TOKEN}`
-    // };
-    // const requestBody = {
-    //   query: `query getMyNFTs($owner:String!) {
-    //             tokens(orderBy: id_ASC, where: {owner: {id_eq: $owner}}) {
-    //               id
-    //               uri
-    //               transfers(limit: 1, orderBy: timestamp_DESC) {
-    //                 to {
-    //                   id
-    //                 }
-    //               }
-    //             }
-    //           }`,
-    //   variables: { signer }
-    // };
-
-    // try {
-    //   const response = await axios(options);
-    //   console.log('RESPONSE FROM AXIOS REQUEST', response.data);
-    // }
-    // catch (err) {
-    //   console.log('ERROR DURING AXIOS REQUEST', err);
-    // }
-    // finally {
-    //   // setNfts(items)
-    //   // setLoadingState('loaded') 
-    // }
-
     const marketplaceContract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
     const data = await marketplaceContract.fetchMyNFTs()
 

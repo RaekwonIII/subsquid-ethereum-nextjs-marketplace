@@ -4,7 +4,6 @@ import { create as ipfsHttpClient } from 'ipfs-http-client'
 import { useRouter } from 'next/router'
 import Web3Modal from 'web3modal'
 
-// const client = ipfsHttpClient('https://infura-ipfs.io:5001/api/v0')
 // https://community.infura.io/t/how-to-add-data-using-ipfs-http-client/5179
 
 const auth =
