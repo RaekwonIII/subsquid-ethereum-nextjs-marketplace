@@ -17,6 +17,7 @@ export default function Home() {
   }, [])
   async function loadNFTs() {
     /* create a generic provider and query for unsold market items */
+    console.log("goerli node: ", `https://goerli.infura.io/v3/${process.env.NEXT_PUBLIC_INFURA_NODE_ID}`)
     const provider = new ethers.providers.JsonRpcProvider(`https://goerli.infura.io/v3/${process.env.NEXT_PUBLIC_INFURA_NODE_ID}`)
     const contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, provider)
     const data = await contract.fetchMarketItems()
