@@ -21,28 +21,62 @@ export default function CreatorDashboard() {
       cacheProvider: true,
     })
     const connection = await web3Modal.connect()
-    const provider = new ethers.providers.Web3Provider(connection)
-    const signer = provider.getSigner()
+    const provider = new ethers.providers.Web3Provider(connection);
+    const signer = provider.getSigner();
 
-    const contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
-    const data = await contract.fetchItemsListed()
+    const owner = await (await signer.getAddress()).toLowerCase();
 
-    const items = await Promise.all(data.map(async i => {
-      const tokenUri = await contract.tokenURI(i.tokenId)
-      const meta = await axios.get(tokenUri)
-      let price = ethers.utils.formatUnits(i.price.toString(), 'ether')
-      let item = {
-        price,
-        tokenId: i.tokenId.toNumber(),
-        seller: i.seller,
-        owner: i.owner,
-        image: meta.data.image,
-      }
-      return item
-    }))
+    const headers = {
+      'content-type': 'application/json',
+    };
+    const requestBody = {
+      query: `query MyQuery ($owner: String!){
+        tokens(orderBy: id_ASC, where: {AND: [
+          {owner: { id_eq: $owner }}, 
+          {forSale_eq: true}
+        ]}) {
+          description
+          forSale
+          id
+          imageURI
+          name
+          price
+          uri
+          owner {
+            id
+          }
+        }
+      }`,
+      variables: { owner }
+    };
+    const options = {
+      method: 'POST',
+      url: process.env.NEXT_PUBLIC_SQUID_URL,
+      headers,
+      data: requestBody
+    };
 
-    setNfts(items)
-    setLoadingState('loaded') 
+    try {
+      const response = await axios(options);
+
+      const squiditems = await Promise.all(response.data.data.tokens.map(async i => {
+        let item = {
+          price: ethers.utils.formatUnits(i.price, 'ether'),
+          tokenId: Number(i.id),
+          owner: i.owner.id,
+          image: i.imageURI,
+          tokenURI: i.uri,
+          name: i.name,
+          description: i.description,
+        }
+        return item
+      }))
+      setNfts(squiditems)
+      setLoadingState('loaded') 
+    }
+    catch (err) {
+      console.log('ERROR DURING AXIOS REQUEST', err);
+    }
   }
   if (loadingState === 'loaded' && !nfts.length) return (<h1 className="py-10 px-20 text-3xl">No NFTs listed</h1>)
   return (

@@ -4,12 +4,16 @@ type Token @entity {
   uri: String
   transfers: [Transfer!]! @derivedFrom(field: "token")
   contract: Contract
+  name: String,
+  description: String
+  imageURI: String
+  price: BigInt!
+  forSale: Boolean
 }
  
 type Owner @entity {
   id: ID!
   ownedTokens: [Token!] @derivedFrom(field: "owner")
-  balance: BigInt! @index
 }
  
 type Contract @entity {

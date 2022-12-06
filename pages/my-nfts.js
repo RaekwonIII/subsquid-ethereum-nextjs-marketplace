@@ -27,65 +27,62 @@ export default function MyAssets() {
       cacheProvider: true,
     })
     const connection = await web3Modal.connect()
-    const provider = new ethers.providers.Web3Provider(connection)
+    const provider = new ethers.providers.Web3Provider(connection);
     const signer = provider.getSigner();
 
-    // const options = {
-    //   method: 'POST',
-    //   url: "http://localhost:4350/graphql",
-    //   headers,
-    //   data: requestBody
-    // };
-    // const headers = {
-    //   'content-type': 'application/json',
-    //   // 'Authorization': `Bearer ${HYGRAPH_PERMANENTAUTH_TOKEN}`
-    // };
-    // const requestBody = {
-    //   query: `query getMyNFTs($owner:String!) {
-    //             tokens(orderBy: id_ASC, where: {owner: {id_eq: $owner}}) {
-    //               id
-    //               uri
-    //               transfers(limit: 1, orderBy: timestamp_DESC) {
-    //                 to {
-    //                   id
-    //                 }
-    //               }
-    //             }
-    //           }`,
-    //   variables: { signer }
-    // };
+    const owner = await (await signer.getAddress()).toLowerCase();
 
-    // try {
-    //   const response = await axios(options);
-    //   console.log('RESPONSE FROM AXIOS REQUEST', response.data);
-    // }
-    // catch (err) {
-    //   console.log('ERROR DURING AXIOS REQUEST', err);
-    // }
-    // finally {
-    //   // setNfts(items)
-    //   // setLoadingState('loaded') 
-    // }
+    const headers = {
+      'content-type': 'application/json',
+    };
+    const requestBody = {
+      query: `query MyQuery ($owner: String!){
+        tokens(orderBy: id_ASC, where: {AND: [
+          {owner: { id_eq: $owner }}, 
+          {forSale_eq: false}
+        ]}) {
+          description
+          forSale
+          id
+          imageURI
+          name
+          price
+          uri
+          owner {
+            id
+          }
+        }
+      }`,
+      variables: { owner }
+    };
+    const options = {
+      method: 'POST',
+      url: process.env.NEXT_PUBLIC_SQUID_URL,
+      headers,
+      data: requestBody
+    };
 
-    const marketplaceContract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
-    const data = await marketplaceContract.fetchMyNFTs()
+    try {
+      const response = await axios(options);
 
-    const items = await Promise.all(data.map(async i => {
-      const tokenURI = await marketplaceContract.tokenURI(i.tokenId)
-      const meta = await axios.get(tokenURI)
-      let price = ethers.utils.formatUnits(i.price.toString(), 'ether')
-      let item = {
-        price,
-        tokenId: i.tokenId.toNumber(),
-        seller: i.seller,
-        owner: i.owner,
-        image: meta.data.image,
-        tokenURI
-      }
-      return item
-    }))
-    setNfts(items)
-    setLoadingState('loaded') 
+      const squiditems = await Promise.all(response.data.data.tokens.map(async i => {
+        let item = {
+          price: ethers.utils.formatUnits(i.price, 'ether'),
+          tokenId: Number(i.id),
+          owner: i.owner.id,
+          image: i.imageURI,
+          tokenURI: i.uri,
+          name: i.name,
+          description: i.description,
+        }
+        return item
+      }))
+      setNfts(squiditems)
+      setLoadingState('loaded') 
+    }
+    catch (err) {
+      console.log('ERROR DURING AXIOS REQUEST', err);
+    }
   }
   function listNFT(nft) {
     console.log('nft:', nft)

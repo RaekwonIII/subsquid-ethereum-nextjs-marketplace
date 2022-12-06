@@ -21,9 +21,58 @@ export default function ResellNFT() {
   }, [id])
 
   async function fetchNFT() {
-    if (!tokenURI) return
+    if (!id) return
     const meta = await axios.get(tokenURI)
-    updateFormInput(state => ({ ...state, image: meta.data.image }))
+
+    const headers = {
+      'content-type': 'application/json',
+    };
+    const requestBody = {
+      query: `query MyQuery ($id: String!) {
+        tokens(where: {id_eq: $id}) {
+          description
+          forSale
+          id
+          imageURI
+          name
+          price
+          uri
+          owner {
+            id
+          }
+        }
+      }
+      `,
+      variables: { id }
+    };
+    const options = {
+      method: 'POST',
+      url: process.env.NEXT_PUBLIC_SQUID_URL,
+      headers,
+      data: requestBody
+    };
+
+    try {
+      const response = await axios(options);
+
+      const squiditems = await Promise.all(response.data.data.tokens.map(async i => {
+        let item = {
+          price: ethers.utils.formatUnits(i.price, 'ether'),
+          tokenId: Number(i.id),
+          owner: i.owner?.id || "",
+          image: i.imageURI,
+          tokenURI: i.uri,
+          name: i.name,
+          description: i.description,
+        }
+        return item
+      }))
+      updateFormInput(state => ({ ...state, image: squiditems[0].image }))
+    }
+    catch (err) {
+      console.log('ERROR DURING AXIOS REQUEST', err);
+    }
+
   }
 
   async function listNFTForSale() {
