@@ -2,7 +2,6 @@ version: "3"
 
 services:
   ingester:
-    # image: subsquid/eth-stage1-ingester:0.0.33
     image: massimocodes/eth-archive-ingester:latest
     environment:
       RUST_LOG: "info"
@@ -16,7 +15,6 @@ services:
             "--http-req-concurrency", "200",
             "--best-block-offset", "10",
             "--rpc-urls", "http://host.docker.internal:8545/",
-            # "--rpc-urls", "https://rpc.ankr.com/eth_goerli",
             "--max-blocks-per-file", "100000",
             "--max-txs-per-file", "200000",
             "--max-logs-per-file", "200000",
@@ -27,7 +25,6 @@ services:
     volumes:
       - parquet:/data
   worker:
-    # image: subsquid/eth-stage1-worker:0.0.33
     image: massimocodes/eth-archive-worker:latest
     environment:
       RUST_LOG: "info"
@@ -44,7 +41,6 @@ services:
             "--http-req-concurrency", "10",
             "--best-block-offset", "10",
             "--rpc-urls", "http://host.docker.internal:8545/",
-            # "--rpc-urls", "https://rpc.ankr.com/eth_goerli",
             "--initial-hot-block-range", "100000",
             "--max-resp-body-size", "30",
             "--resp-time-limit", "5000",

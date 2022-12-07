@@ -16,7 +16,7 @@ import { BigNumber } from "ethers";
 import axios from "axios";
 
 const contractAddress =
-  process.env.MARKETPLACE_ADDRESS?.toLowerCase() ||
+  process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS?.toLowerCase() ||
   "0x0000000000000000000000000000000000000000";
 
 const processor = new EvmBatchProcessor()
@@ -78,7 +78,7 @@ processor.run(new TypeormDatabase(), async (ctx) => {
           functions.createMarketSale.sighash
         ) {
           ctx.log.info("found createMarketSale transaction!");
-          
+
           const marketItemDatum = handleCreateMarketSaleFunction({
             ...ctx,
             block: block.header,
@@ -131,7 +131,7 @@ export async function getOrCreateContractEntity(
     contractEntity = await store.get(Contract, contractAddress);
     if (contractEntity == null) {
       contractEntity = new Contract({
-        id: process.env.MARKETPLACE_ADDRESS,
+        id: process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS,
         name: "MassimoTest",
         symbol: "XYZ",
         totalSupply: 0n,
@@ -156,9 +156,7 @@ function handleCreateMarketSaleFunction(
 ): MarketItemData {
   const { transaction, block } = ctx;
 
-  const { tokenId } = functions.createMarketSale.decode(
-    transaction.input
-  );
+  const { tokenId } = functions.createMarketSale.decode(transaction.input);
   const transactionHash = transaction.input;
   const addr = transaction.to;
 
@@ -189,9 +187,7 @@ function handleResellTokenFunction(
 ): MarketItemData {
   const { transaction, block } = ctx;
 
-  const { tokenId, price } = functions.resellToken.decode(
-    transaction.input
-  );
+  const { tokenId, price } = functions.resellToken.decode(transaction.input);
 
   const transactionHash = transaction.input;
   const addr = transaction.to?.toLowerCase();
@@ -248,10 +244,8 @@ async function saveItems(
 
   for (const transferData of transfersData) {
     tokensIds.add(transferData.tokenId.toString());
-    if (transferData.from)
-      ownersIds.add(transferData.from.toLowerCase());
-    if (transferData.to)
-      ownersIds.add(transferData.to.toLowerCase());
+    if (transferData.from) ownersIds.add(transferData.from.toLowerCase());
+    if (transferData.to) ownersIds.add(transferData.to.toLowerCase());
   }
 
   const transfers: Set<Transfer> = new Set();
@@ -271,12 +265,18 @@ async function saveItems(
   );
 
   for (const transferData of transfersData) {
-    const { id, tokenId, from, to, block, transactionHash, price, forSale, timestamp } = transferData;
-    const contract = new ContractAPI(
-      ctx,
-      { height: block },
-      contractAddress
-    );
+    const {
+      id,
+      tokenId,
+      from,
+      to,
+      block,
+      transactionHash,
+      price,
+      forSale,
+      timestamp,
+    } = transferData;
+    const contract = new ContractAPI(ctx, { height: block }, contractAddress);
 
     // the "" case handles absence of sender, which means it's not an actual transaction
     // likely, it's the token being minted and put up for sale
@@ -285,7 +285,7 @@ async function saveItems(
       fromOwner = new Owner({ id: from.toLowerCase() });
       owners.set(fromOwner.id, fromOwner);
     }
-    
+
     // the "" case handles absence of receiver, which means it's not an actual transaction
     // likely it's the token being put up for re-sale
     let toOwner = owners.get(to || "");
@@ -335,7 +335,6 @@ async function saveItems(
     token.price = price || token.price; // change the price ONLY if changed by function/event
 
     if (toOwner && fromOwner) {
-  
       const transfer = new Transfer({
         id,
         block,
@@ -346,8 +345,9 @@ async function saveItems(
         price: token.price,
         token,
       });
-  
-      transfers.add(transfer);}
+
+      transfers.add(transfer);
+    }
   }
 
   await ctx.store.save([...owners.values()]);

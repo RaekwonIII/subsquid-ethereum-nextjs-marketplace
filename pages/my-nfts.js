@@ -4,12 +4,6 @@ import axios from 'axios'
 import Web3Modal from 'web3modal'
 import { useRouter } from 'next/router'
 
-import {
-  marketplaceAddress
-} from '../config'
-
-import NFTMarketplace from '../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json'
-
 const auth =
 'Basic ' + Buffer.from(process.env. NEXT_PUBLIC_IPFS_PROJECT_ID + ':' + process.env. NEXT_PUBLIC_IPFS_PROJECT_SECRET).toString('base64');
 
