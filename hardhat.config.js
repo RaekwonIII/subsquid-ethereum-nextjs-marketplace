@@ -9,10 +9,10 @@ module.exports = {
   networks: {
     hardhat: {
       chainId: 1337,
-      // mining: {
-      //   auto: false,
-      //   interval: [4800, 5200]
-      // }
+      mining: {
+        auto: false,
+        interval: [4800, 5200]
+      }
     },
     goerli: {
       // Infura
