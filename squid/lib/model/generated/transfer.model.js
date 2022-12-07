@@ -62,10 +62,6 @@ __decorate([
     __metadata("design:type", Object)
 ], Transfer.prototype, "to", void 0);
 __decorate([
-    (0, typeorm_1.Column)("numeric", { transformer: marshal.bigintTransformer, nullable: false }),
-    __metadata("design:type", typeof BigInt === "function" ? BigInt : Object)
-], Transfer.prototype, "price", void 0);
-__decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)("numeric", { transformer: marshal.bigintTransformer, nullable: false }),
     __metadata("design:type", typeof BigInt === "function" ? BigInt : Object)

@@ -1,27 +1,43 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOrCreateContractEntity = void 0;
 const typeorm_store_1 = require("@subsquid/typeorm-store");
 const evm_processor_1 = require("@subsquid/evm-processor");
-const NFTMarketplace_1 = require("./abi/NFTMarketplace");
-const model_1 = require("./model");
 const typeorm_1 = require("typeorm");
-const ethers_1 = require("ethers");
-const axios_1 = __importDefault(require("axios"));
-const contractAddress = process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS?.toLowerCase() ||
-    "0x0000000000000000000000000000000000000000";
-console.log("Indexing: ", contractAddress);
-console.log("On the archive: ", process.env.ARCHIVE_URL);
+const contract_1 = require("./contract");
+const model_1 = require("./model");
+const exo = __importStar(require("./abi/exo"));
+const database = new typeorm_store_1.TypeormDatabase();
 const processor = new evm_processor_1.EvmBatchProcessor()
+    .setBlockRange({ from: 15584000 })
     .setDataSource({
-    chain: process.env.ETHEREUM_WSS,
-    archive: process.env.ARCHIVE_URL || "https://goerli.archive.subsquid.io/",
+    chain: process.env.ETHEREUM_MAINNET_WSS,
+    archive: 'https://eth.archive.subsquid.io',
 })
-    .addLog(contractAddress, {
-    filter: [[NFTMarketplace_1.events.MarketItemCreated.topic]],
+    .addLog(contract_1.contractAddress, {
+    filter: [[exo.events["Transfer(address,address,uint256)"].topic]],
     data: {
         evmLog: {
             topics: true,
@@ -31,148 +47,50 @@ const processor = new evm_processor_1.EvmBatchProcessor()
             hash: true,
         },
     },
-})
-    .addTransaction(contractAddress, {
-    sighash: NFTMarketplace_1.functions.createMarketSale.sighash,
-    data: {
-        transaction: {
-            from: true,
-            input: true,
-            to: true,
-        },
-    },
-})
-    .addTransaction(contractAddress, {
-    sighash: NFTMarketplace_1.functions.resellToken.sighash,
-    data: {
-        transaction: {
-            from: true,
-            input: true,
-            to: true,
-        },
-    },
 });
-processor.run(new typeorm_store_1.TypeormDatabase(), async (ctx) => {
-    const marketItemData = [];
+processor.run(database, async (ctx) => {
+    const transfersData = [];
     for (const block of ctx.blocks) {
         for (const item of block.items) {
-            if (item.kind === "evmLog" && item.address === contractAddress) {
-                if (item.evmLog.topics[0] === NFTMarketplace_1.events.MarketItemCreated.topic) {
-                    ctx.log.info("found MarketItemCreated Event!");
-                    const marketItemDatum = handleMarketItemCreatedEvent({
+            if (item.kind === "evmLog") {
+                if (item.address === contract_1.contractAddress) {
+                    const transfer = handleTransfer({
                         ...ctx,
                         block: block.header,
                         ...item,
                     });
-                    marketItemData.push(marketItemDatum);
-                }
-            }
-            if (item.kind === "transaction" && item.address === contractAddress) {
-                if (item.transaction.input.slice(0, 10) ===
-                    NFTMarketplace_1.functions.createMarketSale.sighash) {
-                    ctx.log.info("found createMarketSale transaction!");
-                    const marketItemDatum = handleCreateMarketSaleFunction({
-                        ...ctx,
-                        block: block.header,
-                        ...item,
-                    });
-                    marketItemData.push(marketItemDatum);
-                }
-                if (item.transaction.input.slice(0, 10) === NFTMarketplace_1.functions.resellToken.sighash) {
-                    ctx.log.info("found resellToken transaction!");
-                    const marketItemDatum = handleResellTokenFunction({
-                        ...ctx,
-                        block: block.header,
-                        ...item,
-                    });
-                    marketItemData.push(marketItemDatum);
+                    transfersData.push(transfer);
                 }
             }
         }
     }
-    await saveItems({
+    await saveTransfers({
         ...ctx,
         block: ctx.blocks[ctx.blocks.length - 1].header,
-    }, marketItemData);
+    }, transfersData);
 });
-let contractEntity;
-async function getOrCreateContractEntity(store) {
-    if (contractEntity == null) {
-        contractEntity = await store.get(model_1.Contract, contractAddress);
-        if (contractEntity == null) {
-            contractEntity = new model_1.Contract({
-                id: process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS,
-                name: "MassimoTest",
-                symbol: "XYZ",
-                totalSupply: 0n,
-            });
-            await store.insert(contractEntity);
-        }
-    }
-    return contractEntity;
-}
-exports.getOrCreateContractEntity = getOrCreateContractEntity;
-function handleCreateMarketSaleFunction(ctx) {
-    const { transaction, block } = ctx;
-    const { tokenId } = NFTMarketplace_1.functions.createMarketSale.decode(transaction.input);
-    const transactionHash = transaction.input;
-    const addr = transaction.to;
-    const marketItem = {
-        id: `${transactionHash}-${addr}-${tokenId.toBigInt()}-${transaction.index}`,
-        tokenId: tokenId.toBigInt(),
-        to: transaction.from || "",
-        forSale: false,
-        timestamp: BigInt(block.timestamp),
-        block: block.height,
-        transactionHash: transaction.input,
-    };
-    return marketItem;
-}
-function handleResellTokenFunction(ctx) {
-    const { transaction, block } = ctx;
-    const { tokenId, price } = NFTMarketplace_1.functions.resellToken.decode(transaction.input);
-    const transactionHash = transaction.input;
-    const addr = transaction.to?.toLowerCase();
-    const marketItem = {
-        id: `${transactionHash}-${addr}-${tokenId.toBigInt()}-${transaction.index}`,
-        tokenId: tokenId.toBigInt(),
-        price: price.toBigInt(),
-        forSale: true,
-        timestamp: BigInt(block.timestamp),
-        block: block.height,
-        transactionHash: transaction.input,
-    };
-    return marketItem;
-}
-function handleMarketItemCreatedEvent(ctx) {
+function handleTransfer(ctx) {
     const { evmLog, transaction, block } = ctx;
-    // the owner and seller fields are mislabelled
-    // when a MarketItem is created, the "seller" is the owner
-    // the NFT is just temporarily transferred to the contract itself
-    // I decide to use the `sold` field to distinguish between
-    // "my nfts" and "my nfts up for sale", reversing the logic
-    const { tokenId, seller, owner, price, sold } = NFTMarketplace_1.events.MarketItemCreated.decode(evmLog);
-    const marketItem = {
-        id: "",
+    const addr = evmLog.address.toLowerCase();
+    const { from, to, tokenId } = exo.events["Transfer(address,address,uint256)"].decode(evmLog);
+    const transfer = {
+        id: `${transaction.hash}-${addr}-${tokenId.toBigInt()}-${evmLog.index}`,
         tokenId: tokenId.toBigInt(),
-        to: seller,
-        price: price.toBigInt(),
-        forSale: !sold,
+        from,
+        to,
         timestamp: BigInt(block.timestamp),
         block: block.height,
         transactionHash: transaction.hash,
     };
-    return marketItem;
+    return transfer;
 }
-async function saveItems(ctx, transfersData) {
+async function saveTransfers(ctx, transfersData) {
     const tokensIds = new Set();
     const ownersIds = new Set();
     for (const transferData of transfersData) {
         tokensIds.add(transferData.tokenId.toString());
-        if (transferData.from)
-            ownersIds.add(transferData.from.toLowerCase());
-        if (transferData.to)
-            ownersIds.add(transferData.to.toLowerCase());
+        ownersIds.add(transferData.from);
+        ownersIds.add(transferData.to);
     }
     const transfers = new Set();
     const tokens = new Map((await ctx.store.findBy(model_1.Token, { id: (0, typeorm_1.In)([...tokensIds]) })).map((token) => [
@@ -184,68 +102,47 @@ async function saveItems(ctx, transfersData) {
         owner,
     ]));
     for (const transferData of transfersData) {
-        const { id, tokenId, from, to, block, transactionHash, price, forSale, timestamp, } = transferData;
-        const contract = new NFTMarketplace_1.Contract(ctx, { height: block }, contractAddress);
-        // the "" case handles absence of sender, which means it's not an actual transaction
-        // likely, it's the token being minted and put up for sale
-        let fromOwner = owners.get(from || "");
-        if (from && fromOwner == null) {
-            fromOwner = new model_1.Owner({ id: from.toLowerCase() });
-            owners.set(fromOwner.id, fromOwner);
+        const contract = new exo.Contract(ctx, { height: transferData.block }, contract_1.contractAddress);
+        let from = owners.get(transferData.from);
+        if (from == null) {
+            from = new model_1.Owner({ id: transferData.from, balance: 0n });
+            owners.set(from.id, from);
         }
-        // the "" case handles absence of receiver, which means it's not an actual transaction
-        // likely it's the token being put up for re-sale
-        let toOwner = owners.get(to || "");
-        if (to && toOwner == null) {
-            toOwner = new model_1.Owner({ id: to.toLowerCase() });
-            owners.set(toOwner.id, toOwner);
+        let to = owners.get(transferData.to);
+        if (to == null) {
+            to = new model_1.Owner({ id: transferData.to, balance: 0n });
+            owners.set(to.id, to);
         }
-        const tokenIdString = tokenId.toString();
+        const tokenIdString = transferData.tokenId.toString();
         let token = tokens.get(tokenIdString);
-        let tokenURI, name, description, imageURI = "";
-        try {
-            tokenURI = await contract.tokenURI(ethers_1.BigNumber.from(tokenId));
-        }
-        catch (error) {
-            ctx.log.warn(`[API] Error during fetch tokenURI of ${tokenIdString}`);
-            if (error instanceof Error)
-                ctx.log.warn(`${error.message}`);
-        }
-        if (tokenURI !== "") {
-            // fetch metadata and assign name, description, imageURI
-            const meta = await axios_1.default.get(tokenURI || "1");
-            imageURI = meta.data.image;
-            name = meta.data.name;
-            description = meta.data.description;
-        }
+        let tokenURI = "";
+        // try {
+        //   tokenURI = await contract.tokenURI(BigNumber.from(transferData.tokenId)) 
+        // } catch (error) {
+        //   ctx.log.warn(`[API] Error during fetch tokenURI of ${tokenIdString}`);
+        //   if (error instanceof Error)
+        //     ctx.log.warn(`${error.message}`);
+        // }
         if (token == null) {
             token = new model_1.Token({
                 id: tokenIdString,
                 uri: tokenURI,
-                name,
-                description,
-                imageURI,
-                price,
-                contract: await getOrCreateContractEntity(ctx.store),
+                contract: await (0, contract_1.getOrCreateContractEntity)(ctx.store),
             });
             tokens.set(token.id, token);
         }
-        token.owner = toOwner;
-        token.forSale = forSale;
-        token.price = price || token.price; // change the price ONLY if changed by function/event
-        if (toOwner && fromOwner) {
-            const transfer = new model_1.Transfer({
-                id,
-                block,
-                timestamp,
-                transactionHash,
-                from: fromOwner,
-                to: toOwner,
-                price: token.price,
-                token,
-            });
-            transfers.add(transfer);
-        }
+        token.owner = to;
+        const { id, block, transactionHash, timestamp } = transferData;
+        const transfer = new model_1.Transfer({
+            id,
+            block,
+            timestamp,
+            transactionHash,
+            from,
+            to,
+            token,
+        });
+        transfers.add(transfer);
     }
     await ctx.store.save([...owners.values()]);
     await ctx.store.save([...tokens.values()]);

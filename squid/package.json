@@ -3,15 +3,15 @@
   "private": true,
   "scripts": {
     "build": "rm -rf lib && tsc",
-    "db:migrate": "npx squid-typeorm-migration apply",
     "update": "npx npm-check-updates --filter /subsquid/ --upgrade && npm i -f",
+    "db:migrate": "npx squid-typeorm-migration apply",
     "squid-etl:start": "node lib/processor.js",
     "squid-api:start": "squid-graphql-server"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.6.1",
     "@subsquid/big-decimal": "^0.0.0",
-    "@subsquid/evm-processor": "^0.2.1",
+    "@subsquid/evm-processor": "^0.2.0",
     "@subsquid/evm-typegen": "2.0.1",
     "@subsquid/graphql-server": "3.2.4",
     "@subsquid/typeorm-migration": "0.1.4",
