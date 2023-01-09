@@ -17,25 +17,28 @@ cd subsquid-ethereum-nextjs-marketplace
 
 # install using NPM or Yarn
 npm install
-```
 
-2. Add the Infura IPFS account credentials to a `.env` file: 
-
-```
-NEXT_PUBLIC_IPFS_PROJECT_ID=<YOUR_CREDENTIAL_HERE>
-NEXT_PUBLIC_IPFS_PROJECT_SECRET=<YOUR_CREDENTIAL_HERE>
-```
-
-3. Start the local Hardhat node
+2. Start the local Hardhat node
 
 ```sh
 npx hardhat node
 ```
 
-4. With the network running, deploy the contracts to the local network in a separate terminal window
+> Note: It is always best to reset accounts on Metamask, when starting (or restarting) the Hardthat node. Click on the Account avatar on Metamask => Settings => Advanced => Reset account.
+
+3. With the network running, deploy the contracts to the local network in a separate terminal window
 
 ```sh
 npx hardhat run scripts/deploy.js --network localhost
+```
+
+4. Obtain the Infura IPFS account credentials, enable Dedicated Gateway and add these values and marketplace address to a `.env` file (see `.example.env`):
+
+```
+NEXT_PUBLIC_MARKETPLACE_ADDRESS=<YOUR_CONTRACT_ADDRESS_HERE>
+NEXT_PUBLIC_IPFS_PROJECT_ID=<YOUR_CREDENTIAL_HERE>
+NEXT_PUBLIC_IPFS_PROJECT_SECRET=<YOUR_CREDENTIAL_HERE>
+NEXT_PUBLIC_IPFS_GATEWAY=<YOUR_SUBDOMAIN_HERE>
 ```
 
 5. Start the app

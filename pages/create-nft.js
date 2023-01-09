@@ -5,12 +5,11 @@ import { useRouter } from 'next/router'
 import Web3Modal from 'web3modal'
 
 // https://community.infura.io/t/how-to-add-data-using-ipfs-http-client/5179
-
 const auth =
 'Basic ' + Buffer.from(process.env.NEXT_PUBLIC_IPFS_PROJECT_ID + ':' + process.env.NEXT_PUBLIC_IPFS_PROJECT_SECRET).toString('base64');
 
 const client = ipfsHttpClient({
-    host: 'infura-ipfs.io',
+    host: 'ipfs.infura.io',
     port: 5001,
     protocol: 'https',
     headers: {
@@ -34,7 +33,7 @@ export default function CreateItem() {
           progress: (prog) => console.log(`received: ${prog}`)
         }
       )
-      const url = `https://massimocodes.infura-ipfs.io/ipfs/${added.path}`
+      const url = `https://${process.env.NEXT_PUBLIC_IPFS_GATEWAY}.infura-ipfs.io/ipfs/${added.path}`
       setFileUrl(url)
     } catch (error) {
       console.log('Error uploading file: ', error)
@@ -49,7 +48,7 @@ export default function CreateItem() {
     })
     try {
       const added = await client.add(data)
-      const url = `https://massimocodes.infura-ipfs.io/ipfs/${added.path}`
+      const url = `https://${process.env.NEXT_PUBLIC_IPFS_GATEWAY}.infura-ipfs.io/ipfs/${added.path}`
       /* after file is uploaded to IPFS, return the URL to use it in the transaction */
       return url
     } catch (error) {
