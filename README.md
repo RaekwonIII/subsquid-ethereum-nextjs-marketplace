@@ -17,6 +17,7 @@ cd subsquid-ethereum-nextjs-marketplace
 
 # install using NPM or Yarn
 npm install
+```
 
 2. Start the local Hardhat node
 
