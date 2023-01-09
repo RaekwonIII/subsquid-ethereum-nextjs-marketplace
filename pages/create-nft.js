@@ -18,10 +18,6 @@ const client = ipfsHttpClient({
     },
 });
 
-import {
-  marketplaceAddress
-} from '../config'
-
 import NFTMarketplace from '../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json'
 
 export default function CreateItem() {
@@ -70,7 +66,7 @@ export default function CreateItem() {
 
     /* next, create the item */
     const price = ethers.utils.parseUnits(formInput.price, 'ether')
-    let contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
+    let contract = new ethers.Contract(process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS, NFTMarketplace.abi, signer)
     let listingPrice = await contract.getListingPrice()
     console.log('listing price: ', listingPrice)
     listingPrice = listingPrice.toString()

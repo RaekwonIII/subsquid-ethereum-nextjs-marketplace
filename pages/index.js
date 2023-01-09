@@ -3,10 +3,6 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import Web3Modal from 'web3modal'
 
-import {
-  marketplaceAddress
-} from '../config'
-
 import NFTMarketplace from '../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json'
 
 export default function Home() {
@@ -19,7 +15,7 @@ export default function Home() {
     /* create a generic provider and query for unsold market items */
     // const provider = new ethers.providers.JsonRpcProvider(`https://goerli.infura.io/v3/${process.env.NEXT_PUBLIC_INFURA_NODE_ID}`)
     const provider = new ethers.providers.JsonRpcProvider()
-    const contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, provider)
+    const contract = new ethers.Contract(process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS, NFTMarketplace.abi, provider)
     const data = await contract.fetchMarketItems()
 
     /*
@@ -50,7 +46,7 @@ export default function Home() {
     const connection = await web3Modal.connect()
     const provider = new ethers.providers.Web3Provider(connection)
     const signer = provider.getSigner()
-    const contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
+    const contract = new ethers.Contract(process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS, NFTMarketplace.abi, signer)
 
     /* user will be prompted to pay the asking proces to complete the transaction */
     const price = ethers.utils.parseUnits(nft.price.toString(), 'ether')   

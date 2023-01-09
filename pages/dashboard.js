@@ -3,10 +3,6 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import Web3Modal from 'web3modal'
 
-import {
-  marketplaceAddress
-} from '../config'
-
 import NFTMarketplace from '../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json'
 
 export default function CreatorDashboard() {
@@ -24,7 +20,7 @@ export default function CreatorDashboard() {
     const provider = new ethers.providers.Web3Provider(connection)
     const signer = provider.getSigner()
 
-    const contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
+    const contract = new ethers.Contract(process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS, NFTMarketplace.abi, signer)
     const data = await contract.fetchItemsListed()
 
     const items = await Promise.all(data.map(async i => {
